@@ -5,6 +5,8 @@
   <title>RTK</title>
    <link rel="stylesheet" href="http://js-api.maps.sputnik.ru/v0.3/sputnik_maps_bundle.min.css" />
   <script src="http://js-api.maps.sputnik.ru/v0.3/sputnik_maps_bundle.min.js"></script>
+  <script src="http://api-maps.yandex.ru/2.0/?load=package.map&lang=ru-RU" type="text/javascript"></script>
+  <script src="Yandex.js"></script>
   <style type="text/css">#map1 { height: 400px; }</style>
   <style type="text/css">#map2 { height: 400px; margin-top: 20px; }</style>
 </head>
@@ -12,6 +14,35 @@
 <div id="map1" class="user-map map"></div>
 <div id="map2" class="user-map map"></div>
 <script>
+	// return a function that won't be called more often than the given interval
+	L.Util.throttle = function throttle (fn, time, context) {
+		var lock, args, wrapperFn, later;
+
+		later = function () {
+			// reset lock and call if queued
+			lock = false;
+			if (args) {
+				wrapperFn.apply(context, args);
+				args = false;
+			}
+		};
+
+		wrapperFn = function () {
+			if (lock) {
+				// called too soon, queue to call later
+				args = arguments;
+
+			} else {
+				// call and lock until later
+				fn.apply(context, arguments);
+				setTimeout(later, time);
+				lock = true;
+			}
+		};
+
+		return wrapperFn;
+	};
+
     var map1 = L.sm.map('map1', {center: [55.775, 37.624], zoom: 12});
 
     var markers1 = {
@@ -21,18 +52,34 @@
 
     L.sm.geoJson(markers1).addTo(map1);
 
-	var tpl = 'https://vec01.maps.yandex.net/tiles?l=map&v=4.52.1&x={x}&y={y}&z={z}&scale=1&lang=ru_RU',
-		yandexTileLayer = L.tileLayer(tpl);
+	var map2 = new L.Map('map2', {center: new L.LatLng(55.775, 37.624), zoom: 12, zoomAnimation: false });
+//	var tpl = new L.TileLayer('https://vec01.maps.yandex.net/tiles?l=map&v=4.52.1&x={x}&y={y}&z={z}&scale=1&lang=ru_RU');
 
+//	var ptnk = new L.TileLayer('https://tilessputnik.ru/{z}/{x}/{y}.png');
 
-	var map2 = L.map('map2', {
-		layers: [ yandexTileLayer ],
-		center: [55.775, 37.624],
-		zoom: 12,
-	});
+	var yndx = new L.Yandex();
+//	var ytraffic = new L.Yandex("null", {traffic:true, opacity:0.8, overlay:true});
+	map2.addLayer(yndx);
+//	map2.addLayer(ytraffic);
+//	map2.addControl(new L.Control.Layers({"Yandex":yndx}));
 
     L.sm.geoJson(markers1).addTo(map2);
+	map1.on('dragend zoomend', L.Util.throttle(onDrag, 20));
+	map2.on('dragend zoomend', L.Util.throttle(onDrag, 20));
+function onDrag (event) {
+	// console.log(' * onDrag() ', event, 'ctx', this);
+	var thisMap = event.target;
+	var targetMap = (map1 === thisMap ? map2 : map1);
 
+	//console.log('targetMap: ', targetMap);
+
+	var center = thisMap.getCenter(),
+		zoom = thisMap.getZoom();
+
+	// console.log('center: ', center, 'zoom:', zoom);
+
+	targetMap.setView(center, zoom);
+}
 </script>
 </body>
 </html>
